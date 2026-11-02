@@ -13,7 +13,7 @@ categories = ["embedded", "development-tools::profiling"]
 
 [dependencies]
 num_enum = "0.7.3"
-serialport = "4.7.2"
+serialport = { version = "4.7.2", features = ["usbportinfo-interface"] }
 thiserror = "2.0.12"
 tracing = "0.1.41"
 
@@ -25,3 +25,6 @@ clap = { version = "4.5.40", features = ["derive", "env"] }
 
 [badges]
 maintenance = { status = "passively-maintained" }
+
+[workspace]
+members = ["gui"]

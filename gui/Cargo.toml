@@ -1,0 +1,17 @@
+[package]
+name = "ppk2-gui"
+version = "0.2.0"
+edition = "2021"
+description = "Native GUI for Nordic's Power Profiler Kit 2"
+license = "MIT"
+publish = false
+
+[dependencies]
+ppk2 = { path = ".." }
+eframe = { version = "0.37.0", features = ["persistence"] }
+egui_plot = "0.38.0"
+image = { version = "0.25", default-features = false, features = ["png"] }
+serialport = "4.7.2"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+

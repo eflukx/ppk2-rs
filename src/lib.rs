@@ -11,7 +11,7 @@ use std::{
     io,
     sync::{Arc, Condvar, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use thiserror::Error;
 use types::{DevicePower, LogicPortPins, MeasurementMode, Metadata, SourceVoltage};
@@ -24,6 +24,12 @@ pub mod types;
 
 /// The fixed sample rate of the PPK2 device is 100kHz.
 const PPK2_SAMPLE_RATE: usize = 100_000;
+/// Maximum time to wait for the complete response to a command.
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(2);
+/// Maximum length of a response; the metadata is the longest, about 500 bytes.
+const MAX_RESPONSE_LEN: usize = 4096;
+/// Maximum time to wait for a running measurement to stop.
+const STOP_STREAMING_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Error, Debug)]
 /// PPK2 communication or data parsing error.
@@ -47,6 +53,8 @@ pub enum Error {
     WorkerSignalError(#[from] TryRecvError),
     #[error("Error deserializeing a measurement: {0:?}")]
     DeserializeMeasurement(Vec<u8>),
+    #[error("No valid response to command 0x{0:02X}. Is the PPK2 in use by another application?")]
+    NoResponse(u8),
 }
 
 #[allow(missing_docs)]
@@ -80,22 +88,66 @@ impl Ppk2 {
             metadata: Metadata::default(),
         };
 
+        // The PPK2 may still be measuring, e.g. when another application didn't stop it: its samples would
+        // be mistaken for the responses to the commands.
+        ppk2.stop_streaming()?;
         ppk2.metadata = ppk2.get_metadata()?;
         ppk2.set_power_mode(mode)?;
         Ok(ppk2)
     }
 
+    /// The device metadata, as read when connecting.
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
     /// Send a raw command and return the result.
     pub fn send_command(&mut self, command: Command) -> Result<Vec<u8>> {
-        self.port.write_all(&Vec::from_iter(command.bytes()))?;
+        let bytes = Vec::from_iter(command.bytes());
+        self.port.write_all(&bytes)?;
         // Doesn't allocate if expected response length is 0
         let mut response = Vec::with_capacity(command.expected_response_len());
         let mut buf = [0u8; 128];
+        let start = Instant::now();
         while !command.response_complete(&response) {
+            // E.g. samples of a running measurement instead of a response
+            if response.len() > MAX_RESPONSE_LEN || start.elapsed() > RESPONSE_TIMEOUT {
+                return Err(Error::NoResponse(bytes[0]));
+            }
             let n = self.port.read(&mut buf)?;
             response.extend_from_slice(&buf[..n]);
         }
         Ok(response)
+    }
+
+    /// Stop a running measurement and discard its samples, until the PPK2 is quiet.
+    fn stop_streaming(&mut self) -> Result<()> {
+        // After e.g. an application was killed while measuring, the PPK2 can have a large backlog of samples:
+        // read until nothing has arrived for a while, sending the stop command again now and then.
+        let timeout = self.port.timeout();
+        self.port.set_timeout(Duration::from_millis(50))?;
+        let start = Instant::now();
+        let mut last_stop: Option<Instant> = None;
+        let mut buf = [0u8; 4096];
+        let result = loop {
+            if last_stop.is_none_or(|t| t.elapsed() > Duration::from_millis(500)) {
+                if let Err(e) = self.port.write_all(&Vec::from_iter(Command::AverageStop.bytes())) {
+                    break Err(e.into());
+                }
+                last_stop = Some(Instant::now());
+            }
+            match self.port.read(&mut buf) {
+                Ok(n) if n > 0 && start.elapsed() > STOP_STREAMING_TIMEOUT => {
+                    break Err(Error::NoResponse(Command::AverageStop.bytes().next().unwrap_or_default()));
+                }
+                Ok(n) if n > 0 => {}
+                Ok(_) => break Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::TimedOut => break Ok(()),
+                Err(e) => break Err(e.into()),
+            }
+        };
+        self.port.set_timeout(timeout)?;
+        result
     }
 
     fn try_get_metadata(&mut self) -> Result<Metadata> {
@@ -116,6 +168,9 @@ impl Ppk2 {
                 }
                 Err(e) => {
                     tracing::warn!("Error fetching metadata: {:?}. Retrying..", e);
+                    // Discard the rest of a garbled response, or the samples of a measurement still running
+                    self.stop_streaming()?;
+                    result = Err(e);
                 }
             }
         }
@@ -132,7 +187,18 @@ impl Ppk2 {
     /// Set the voltage of the device voltage source.
     pub fn set_source_voltage(&mut self, vdd: SourceVoltage) -> Result<()> {
         self.send_command(Command::RegulatorSet(vdd))?;
+        // The current calculation depends on the source voltage
+        self.metadata.vdd = vdd.millivolts();
         Ok(())
+    }
+
+    /// Get a second handle to the same device, e.g. to send commands while measuring.
+    /// A running measurement keeps using the metadata from when it was started.
+    pub fn try_clone(&self) -> Result<Self> {
+        Ok(Self {
+            port: self.port.try_clone()?,
+            metadata: self.metadata.clone(),
+        })
     }
 
     /// Start measurements. Returns a tuple of:
@@ -255,15 +321,19 @@ impl Ppk2 {
 }
 
 /// Try to find the serial port the PPK2 is connected to.
+///
+/// The PPK2 has two serial ports, the data port is the one with the lowest USB interface number.
 pub fn try_find_ppk2_port() -> Result<String> {
     use serialport::SerialPortType::UsbPort;
 
     Ok(serialport::available_ports()?
         .into_iter()
-        .find(|p| match &p.port_type {
-            UsbPort(usb) => usb.vid == 0x1915 && usb.pid == 0xc00a,
-            _ => false,
+        .filter_map(|p| match &p.port_type {
+            UsbPort(usb) if usb.vid == 0x1915 && usb.pid == 0xc00a => Some((usb.interface, p.port_name)),
+            _ => None,
         })
+        // Ports without a known interface number last
+        .min_by_key(|(interface, _)| interface.unwrap_or(u8::MAX))
         .ok_or(Error::Ppk2NotFound)?
-        .port_name)
+        .1)
 }

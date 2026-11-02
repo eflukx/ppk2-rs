@@ -264,6 +264,12 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    /// Whether the device has calibration values (its factory calibration), rather than only the defaults.
+    /// Note that [Metadata::calibrated] is 0 on many calibrated devices.
+    pub fn has_calibration_values(&self) -> bool {
+        self.modifiers != Modifiers::default()
+    }
+
     /// Example metadata:
     /// ```notest
     /// Calibrated: 0
