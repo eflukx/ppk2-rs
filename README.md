@@ -1,6 +1,10 @@
 # PPK2-rs
 
-Rust library and CLI for working with Nordic Semiconductor's Power Profiler Kit II. Far from complete, but can be used at least with the PPK2 functioning as a source meter.
+Rust library, CLI and desktop app for working with Nordic Semiconductor's Power Profiler Kit II:
+
+- [Library](#library): connect to the PPK2, configure it and receive measurements
+- [CLI](#cli): averaged readings, or statistics of every sample per interval (optionally as JSON)
+- [GUI](#gui): a lightweight native alternative to Nordic's Power Profiler, with a live readout, analog meter, plot and statistics
 
 Heavily based on [nrfconnect-ppk](https://github.com/NordicSemiconductor/pc-nrfconnect-ppk) and its derivate [ppk2-api-python](https://github.com/IRNAS/ppk2-api-python).
 
@@ -132,6 +136,118 @@ JSON output (formatted here for readability)
 | `split` | | Active/sleep split (with `--split-stats` only): `threshold_ua`, `active_pct`, `active_avg_ua`, `active_charge_pct`, `bursts`, `burst_ms`, `sleep_pct`, `sleep_avg_ua` |
 
 Numbers are rounded to a sensible resolution (3 decimals, 2 for percentages), values that can't be represented in JSON (NaN, infinite) are `null`.
+
+## GUI
+
+[`gui`](gui) (`ppk2-gui`) is a native desktop app built with [egui](https://github.com/emilk/egui): a lightweight and fast alternative to Nordic's Power Profiler. It starts in an instant, handles all 100 kS/s and stays responsive with hours of data.
+
+![The full view: live readout and meter, the current plot with the digital inputs, and the statistics of the selection, the viewport and a digital condition](gui/screenshots/full.png)
+
+Run it as a release build, so it keeps up with every sample:
+
+```sh
+cargo run --release -p ppk2-gui
+```
+
+The screenshots show simulated data: a device sleeping at about 4 µA, waking up once per second for a 3 ms burst of 6 mA followed by 42 ms at 650 µA, with D0 high during the wake-up.
+
+### Connecting and supply
+
+- Auto detects the PPK2 data port (or pick a serial port), as **source meter** (the PPK2 powers the device under test) or **ampere meter** (measure the current of an external supply through VIN and VOUT)
+- Set the source voltage (800 to 5000 mV) and switch the **DUT power**, also while recording. Switching the power doesn't interrupt the measurement; changing the voltage briefly does
+- Connecting to a PPK2 that is still streaming (e.g. after a crash of another app) just works, and closing the app always leaves the PPK2 in a clean state
+- Calibration info shows whether the PPK2 has calibration values
+
+### Live readout and analog meter
+
+- The average current, and the power as source meter, over a selectable window (100 ms to 5 s), updated once per window so it stays readable, plus the minimum and maximum
+- An analog meter with a logarithmic scale from 100 nA to 1 A: the damped needle shows what's going on at a glance, with a band from the recent minimum to maximum
+- The readout and meter are live whenever connected: the PPK2 measures all the time, Start and Stop only control the recording
+
+### Recording
+
+- **Start** and **Stop** continue the recording, **Clear** starts a new one
+- Keeps the samples for 1 minute to 24 hours (5 minutes by default), at 100 kS/s or at a reduced storage rate of 10 kS/s, 1 kS/s or 100 S/s for long runs. A reduced rate stores the average, minimum and maximum of every group of samples: spikes stay visible, and the average, minimum, maximum and charge stay exact
+- The memory needed is shown next to the settings, e.g. about 200 MB for 5 minutes at 100 kS/s, 510 MB for 8 hours at 1 kS/s or 150 MB for 24 hours at 100 S/s
+
+### Plot
+
+- The current as an average line plus a min/max band, so short spikes never disappear when zoomed out
+- No aliasing jitter: the data is binned per screen pixel on absolute time, so the plot stays steady while following live data or panning through a lot of detail
+- Linear or logarithmic current axis, automatically scaled or manually set (type values like `500 nA` or `1.5 mA`), with "Keep 0" to zoom the current axis around zero
+- **Follow** the latest samples with a selectable time window (10 ms to 1 min), or **Fit all** to see the whole recording
+- The digital inputs D0 to D7 in a plot of their own, sharing the time axis
+- Hovering shows the measured value at that time (average, minimum and maximum), following the plot rather than the pointer
+
+| | |
+|---|---|
+| Scroll | Zoom in time |
+| Ctrl + scroll | Zoom the current axis (switches it to manual), around 0 with "Keep 0" (default) or else around the pointer |
+| Drag (any button), shift + scroll | Pan in time (stops following the live data) |
+| Ctrl + drag | Pan in time and current (switches the current axis to manual, Keep 0 off) |
+| Drag the axis labels | Scale that axis |
+| Shift + drag | Select a time range |
+| Drag an edge of the selection | Move that edge |
+| Click, Esc | Clear the selection |
+| Double click | Show the whole recording, current axis back to auto |
+
+### Statistics
+
+The same statistics as the CLI statistics mode (average, rms, minimum, maximum, charge, power), for:
+
+- the **selection** and the **viewport**, under the plot
+- the **last interval** (10 ms to 10 min), the **interval history** and the **whole recording**, in the side panel. These always use every sample, also at a reduced storage rate
+- optionally split at a current into **active and sleep** parts: share of the time, average current, share of the charge, number of bursts and their average duration
+- **digital conditions**: the statistics of the selection (or viewport) while the digital inputs are at given levels, e.g. D0 = 1 and D2 = 0. Click a pin to cycle through any, 1 and 0. Shows the share of the time, the number of times, the average duration, and the current and charge during those times
+
+### Compact view
+
+![The compact view: the analog meter, the supply controls, the readout and the last interval](gui/screenshots/compact.png)
+
+Only the meter, DUT power and voltage, the readout and the last interval, in a small window to keep next to your editor or terminal. It measures by itself while connected. The window is sized to fit: zoom it with − and + (or Ctrl + and Ctrl −), Fit restores the size.
+
+### Keyboard shortcuts
+
+The buttons show their key on the right or underline its letter, and F1 lists them in the app. The single keys work while no text field is being edited.
+
+| | |
+|---|---|
+| Ctrl + Enter | Connect / disconnect |
+| P | DUT power on / off |
+| Space | Start / stop recording |
+| Ctrl + Del | Clear the recording |
+| C | Compact / full view |
+| F | Follow the latest samples |
+| A | Fit all: show the whole recording |
+| U | Current axis automatic / manual |
+| L | Logarithmic current axis |
+| K | Keep 0 when zooming the current axis |
+| M | Show the min/max band |
+| D | Show the digital inputs |
+| Esc | Close a window or menu, else clear the selection |
+| T | Next color theme |
+| Ctrl + / Ctrl − / Ctrl + 0 | Zoom in / out / reset |
+| F1 | Show the shortcuts |
+
+### Color themes
+
+Settings has five color themes: Teal (above), Graphite, Amber, Light and High contrast. The app remembers the choice, along with the window position and size (on Windows in `%APPDATA%\PPK2\data\app.ron`).
+
+| Graphite | Amber |
+|---|---|
+| ![Graphite theme](gui/screenshots/theme-graphite.png) | ![Amber theme](gui/screenshots/theme-amber.png) |
+| **Light** | **High contrast** |
+| ![Light theme](gui/screenshots/theme-light.png) | ![High contrast theme](gui/screenshots/theme-high-contrast.png) |
+
+### Screenshots
+
+The screenshots are made by the app itself from simulated data, without a PPK2:
+
+```sh
+PPK2_SCREENSHOT=full.png cargo run -p ppk2-gui
+PPK2_SCREENSHOT=compact.png PPK2_COMPACT=1 cargo run -p ppk2-gui
+PPK2_SCREENSHOT=light.png PPK2_THEME=Light cargo run -p ppk2-gui
+```
 
 ## USB permissions (Linux)
 
