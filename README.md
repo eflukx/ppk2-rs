@@ -13,7 +13,7 @@ Heavily based on [nrfconnect-ppk](https://github.com/NordicSemiconductor/pc-nrfc
 
 ## Downloads
 
-[Releases](https://github.com/eflukx/ppk2-rs/releases) have the GUI (`ppk2-gui`) and the CLI (`ppk2-cli`) prebuilt for Windows (x86_64), Linux (x86_64, aarch64) and macOS (Apple silicon, Intel). They are built by the [release workflow](.github/workflows/release.yml) when a version tag is pushed:
+[Releases](https://github.com/eflukx/ppk2-rs/releases) have the GUI (`ppk2-gui`) and the CLI (`ppk2-cli`) prebuilt for Windows (x86_64), Linux (x86_64, aarch64) and macOS (Apple silicon, Intel). Each release also has the [web version](#web-version) (`ppk2-<version>-web.zip`): unzip it on any web server, at any path (HTTPS, or `localhost`). They are built by the [release workflow](.github/workflows/release.yml) when a version tag is pushed:
 
 ```sh
 git tag v0.2.0

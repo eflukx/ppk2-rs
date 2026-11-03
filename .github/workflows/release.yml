@@ -1,4 +1,4 @@
-# Builds the CLI and the GUI for Windows, Linux and macOS. Pushing a version tag (e.g. v0.2.0) publishes them as a
+# Builds the CLI and the GUI for Windows, Linux and macOS, and the web version of the GUI. Pushing a version tag (e.g. v0.2.0) publishes them as a
 # GitHub release; running it by hand (Actions > Release > Run workflow) only builds, the archives are kept as
 # workflow artifacts.
 name: Release
@@ -75,9 +75,48 @@ jobs:
           path: ${{ env.ARCHIVE }}
           if-no-files-found: error
 
+  web:
+    name: Build the web version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: wasm32-unknown-unknown
+
+      - uses: cargo-bins/cargo-binstall@main
+
+      - name: Install trunk
+        run: cargo binstall -y trunk
+
+      - name: Build
+        working-directory: gui
+        run: trunk build --release
+
+      - name: Package
+        # The files of gui/dist in a folder, to put on a web server (any path, the URLs are relative)
+        run: |
+          name="ppk2-${GITHUB_REF_NAME//\//-}-web"
+          cp -r gui/dist "$name"
+          rm -f "$name/.trunk-lock"
+          cp LICENSE "$name/"
+          zip -qr "$name.zip" "$name"
+          echo "ARCHIVE=$name.zip" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
+
   release:
     name: Publish the release
-    needs: build
+    needs: [build, web]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
