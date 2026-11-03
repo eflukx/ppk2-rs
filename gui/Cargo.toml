@@ -8,7 +8,23 @@ publish = false
 
 [dependencies]
 ppk2 = { path = "..", default-features = false }
-eframe = { version = "0.37.0", features = ["persistence"] }
+# eframe's default features, but with wgpu's backends chosen per platform below
+eframe = { version = "0.37.0", default-features = false, features = [
+    "accesskit",
+    "clipboard",
+    "default_fonts",
+    "links",
+    "persistence",
+    "system_fonts",
+    "wayland",
+    "web_screen_reader",
+    "wgpu_no_default_features",
+    "x11",
+] }
+egui-wgpu = { version = "0.37.0", default-features = false, features = [
+    "fragile-send-sync-non-atomic-wasm",
+    "macos-window-resize-jitter-fix",
+] }
 egui_plot = "0.38.0"
 tracing = "0.1.41"
 
@@ -16,7 +32,18 @@ tracing = "0.1.41"
 ppk2 = { path = "..", features = ["serialport"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 serialport = "4.7.2"
+# Part of eframe's default features
+winit = "0.30"
 tracing-subscriber = "0.3.19"
+
+# Windows: only the DirectX 12 backend, which works on any Windows 10/11 (without a GPU, e.g. over Remote Desktop,
+# with Microsoft's WARP software renderer). Leaves out Vulkan, OpenGL and their shader translators.
+[target.'cfg(windows)'.dependencies]
+wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "dx12", "wgsl"] }
+
+# Elsewhere wgpu's default backends: Vulkan and OpenGL on Linux, Metal on macOS, WebGPU and WebGL in the browser
+[target.'cfg(not(windows))'.dependencies]
+wgpu = { version = "30", features = ["webgl"] }
 
 # The web version: WebSerial needs `RUSTFLAGS=--cfg=web_sys_unstable_apis`, see .cargo/config.toml
 [target.'cfg(target_arch = "wasm32")'.dependencies]
