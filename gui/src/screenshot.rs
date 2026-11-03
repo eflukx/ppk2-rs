@@ -7,8 +7,10 @@ use eframe::egui;
 use crate::recording::{Recording, SAMPLE_RATE};
 
 /// Frames to draw before taking the screenshot, so the layout has settled
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 const FRAMES: u32 = 10;
 
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub struct Screenshot {
     path: String,
     frames: u32,
@@ -23,6 +25,8 @@ impl Screenshot {
     pub fn frame(&mut self, ctx: &egui::Context) {
         self.frames += 1;
         ctx.request_repaint();
+        // Never in the browser, where there are no environment variables
+        #[cfg(not(target_arch = "wasm32"))]
         if self.frames == FRAMES {
             let path = self.path.clone();
             ctx.request_screenshot(move |image| {

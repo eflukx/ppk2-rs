@@ -1,40 +1,57 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
-use measurement::{MeasurementAccumulator, MeasurementIterExt, MeasurementMatch};
+#[cfg(feature = "serialport")]
+use measurement::{MeasurementAccumulator, MeasurementIterExt};
+use measurement::MeasurementMatch;
+#[cfg(feature = "serialport")]
 use serialport::{ClearBuffer::Input, FlowControl, SerialPort};
+use std::io;
 use std::str::Utf8Error;
-use std::sync::mpsc::{self, Receiver, SendError, TryRecvError};
+use std::sync::mpsc::{SendError, TryRecvError};
+#[cfg(feature = "serialport")]
 use std::{
     borrow::Cow,
     collections::VecDeque,
-    io,
-    sync::{Arc, Condvar, Mutex},
+    sync::{mpsc, mpsc::Receiver, Arc, Condvar, Mutex},
     thread,
     time::{Duration, Instant},
 };
 use thiserror::Error;
+#[cfg(feature = "serialport")]
 use types::{DevicePower, LogicPortPins, MeasurementMode, Metadata, SourceVoltage};
 
+#[cfg(feature = "serialport")]
 use crate::cmd::Command;
 
 pub mod cmd;
 pub mod measurement;
 pub mod types;
 
+/// USB vendor ID of the PPK2
+pub const PPK2_VID: u16 = 0x1915;
+/// USB product ID of the PPK2. It has two serial ports (CDC interfaces), the data port is the one with the lowest
+/// USB interface number.
+pub const PPK2_PID: u16 = 0xc00a;
+
 /// The fixed sample rate of the PPK2 device is 100kHz.
+#[cfg(feature = "serialport")]
 const PPK2_SAMPLE_RATE: usize = 100_000;
 /// Maximum time to wait for the complete response to a command.
+#[cfg(feature = "serialport")]
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(2);
 /// Maximum length of a response; the metadata is the longest, about 500 bytes.
+#[cfg(feature = "serialport")]
 const MAX_RESPONSE_LEN: usize = 4096;
 /// Maximum time to wait for a running measurement to stop.
+#[cfg(feature = "serialport")]
 const STOP_STREAMING_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Error, Debug)]
 /// PPK2 communication or data parsing error.
 #[allow(missing_docs)]
 pub enum Error {
+    #[cfg(feature = "serialport")]
     #[error("Serial port error: {0}")]
     SerialPort(#[from] serialport::Error),
     #[error("PPK2 not found. Is the device connected and are permissions set correctly?")]
@@ -61,11 +78,13 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// PPK2 device representation.
+#[cfg(feature = "serialport")]
 pub struct Ppk2 {
     port: Box<dyn SerialPort>,
     metadata: Metadata,
 }
 
+#[cfg(feature = "serialport")]
 impl Ppk2 {
     /// Create a new instance and configure the given [MeasurementMode].
     pub fn new<'a>(path: impl Into<Cow<'a, str>>, mode: MeasurementMode) -> Result<Self> {
@@ -323,13 +342,14 @@ impl Ppk2 {
 /// Try to find the serial port the PPK2 is connected to.
 ///
 /// The PPK2 has two serial ports, the data port is the one with the lowest USB interface number.
+#[cfg(feature = "serialport")]
 pub fn try_find_ppk2_port() -> Result<String> {
     use serialport::SerialPortType::UsbPort;
 
     Ok(serialport::available_ports()?
         .into_iter()
         .filter_map(|p| match &p.port_type {
-            UsbPort(usb) if usb.vid == 0x1915 && usb.pid == 0xc00a => Some((usb.interface, p.port_name)),
+            UsbPort(usb) if usb.vid == PPK2_VID && usb.pid == PPK2_PID => Some((usb.interface, p.port_name)),
             _ => None,
         })
         // Ports without a known interface number last

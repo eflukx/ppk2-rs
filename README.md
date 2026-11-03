@@ -4,7 +4,7 @@ Rust library, CLI and desktop app for working with Nordic Semiconductor's Power 
 
 - [Library](#library): connect to the PPK2, configure it and receive measurements
 - [CLI](#cli): averaged readings, or statistics of every sample per interval (optionally as JSON)
-- [GUI](#gui): a lightweight native alternative to Nordic's Power Profiler, with a live readout, analog meter, plot and statistics
+- [GUI](#gui): a lightweight native alternative to Nordic's Power Profiler, with a live readout, analog meter, plot and statistics. It also [runs in the browser](#web-version) (Chrome, Edge), over WebSerial
 - [Downloads](#downloads): prebuilt CLI and GUI for Windows, Linux and macOS
 
 Heavily based on [nrfconnect-ppk](https://github.com/NordicSemiconductor/pc-nrfconnect-ppk) and its derivate [ppk2-api-python](https://github.com/IRNAS/ppk2-api-python).
@@ -30,6 +30,8 @@ ppk2 = "0.1"
 ```
 
 [`examples/cli.rs`](examples/cli.rs) shows how to connect to the PPK2, configure it and receive measurements.
+
+The blocking serial port driver (`Ppk2`) is behind the default `serialport` feature. Without it (`default-features = false`) the crate only has the protocol: the commands (`cmd`), the metadata and the sample decoding (`measurement::MeasurementAccumulator`), to talk to the PPK2 over another transport, e.g. WebSerial in the browser.
 
 ## CLI
 
@@ -250,6 +252,26 @@ Settings has five color themes: Teal (above), Graphite, Amber, Light and High co
 | ![Graphite theme](gui/screenshots/theme-graphite.png) | ![Amber theme](gui/screenshots/theme-amber.png) |
 | **Light** | **High contrast** |
 | ![Light theme](gui/screenshots/theme-light.png) | ![High contrast theme](gui/screenshots/theme-high-contrast.png) |
+
+### Web version
+
+The same app runs in the browser, talking to the PPK2 over [WebSerial](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API): Chrome or Edge on a desktop, from `localhost` or HTTPS. Build and serve it with [trunk](https://trunkrs.dev):
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install --locked trunk
+cd gui
+trunk serve --release    # http://localhost:8080
+trunk build --release    # static files in gui/dist, to host anywhere
+```
+
+WebSerial is an unstable API in `web-sys`, [`.cargo/config.toml`](.cargo/config.toml) sets the `--cfg=web_sys_unstable_apis` it needs.
+
+Differences with the native app:
+
+- **Connecting**: the first time, the browser asks which port to use. The PPK2 has two: choose the data port, the one with the lower number (e.g. COM27, not COM28). After that, *Auto detect* connects to the allowed port without asking; *Choose a port…* asks again
+- **Buffer**: the browser limits the memory to 4 GB, so the default buffer is 1 minute (about 40 MB) and the largest 1 GB
+- The Bahnschrift font (Windows) and the window sizing of the compact view are native only; the settings (theme) are stored in the browser's local storage
 
 ### Screenshots
 

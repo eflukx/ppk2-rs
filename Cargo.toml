@@ -13,15 +13,25 @@ categories = ["embedded", "development-tools::profiling"]
 
 [dependencies]
 num_enum = "0.7.3"
-serialport = { version = "4.7.2", features = ["usbportinfo-interface"] }
+serialport = { version = "4.7.2", features = ["usbportinfo-interface"], optional = true }
 thiserror = "2.0.12"
 tracing = "0.1.41"
+
+[features]
+default = ["serialport"]
+# The blocking serial port driver ([Ppk2]). Without it only the protocol is available: the commands, metadata and
+# sample decoding, e.g. to talk to the PPK2 over WebSerial in the browser.
+serialport = ["dep:serialport"]
 
 [dev-dependencies]
 anyhow = { version = "1.0.98", features = ["backtrace"] }
 ctrlc = "3.4.7"
 tracing-subscriber = "0.3.19"
 clap = { version = "4.5.40", features = ["derive", "env"] }
+
+[[example]]
+name = "cli"
+required-features = ["serialport"]
 
 [badges]
 maintenance = { status = "passively-maintained" }

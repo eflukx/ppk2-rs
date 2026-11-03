@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PPK2 Power Profiler</title>
+    <link data-trunk rel="rust" data-bin="ppk2-gui" data-wasm-opt="2">
+    <style>
+        html, body { margin: 0; height: 100%; overflow: hidden; background: #16181c; color: #ccc; font-family: sans-serif; }
+        canvas { display: block; width: 100%; height: 100%; }
+        #no-serial { display: none; position: absolute; inset: 0; margin: auto; height: 2em; text-align: center; }
+    </style>
+</head>
+<body>
+    <canvas id="ppk2"></canvas>
+    <p id="no-serial">This browser doesn't support WebSerial: use Chrome or Edge, on a desktop.</p>
+    <script>
+        if (!("serial" in navigator)) document.getElementById("no-serial").style.display = "block";
+    </script>
+</body>
+</html>

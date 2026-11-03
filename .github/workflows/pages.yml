@@ -1,0 +1,47 @@
+# Builds the web version of the GUI (WebSerial, Chrome/Edge) and publishes it on GitHub Pages.
+# Enable it in the repository settings: Pages, source "GitHub Actions".
+name: Web version
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: cargo-bins/cargo-binstall@main
+      - name: Install trunk
+        run: cargo binstall -y trunk
+      - name: Build
+        working-directory: gui
+        # Relative URLs, as Pages serves the app from /<repository>/
+        run: trunk build --release --public-url ./
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: gui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

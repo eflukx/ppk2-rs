@@ -1,6 +1,9 @@
 //! The user interface
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
+#[cfg(target_arch = "wasm32")]
+use web_time::{Duration, Instant};
 
 use eframe::egui::{self, containers::scroll_area::ScrollSource, PointerButton, RichText, Stroke};
 use egui_plot::{
@@ -18,13 +21,20 @@ use crate::{
     stats::{format_axis_current, format_charge, format_charge_short, format_current, format_power, parse_current, Report},
 };
 
-/// Seconds of samples kept by default, and the choices
+/// Seconds of samples kept by default, and the choices. Less in the browser, where the memory is limited to 4 GB
+/// and growing the buffer temporarily takes twice the memory.
+#[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_BUFFER_S: f64 = 300.;
+#[cfg(target_arch = "wasm32")]
+const DEFAULT_BUFFER_S: f64 = 60.;
 const BUFFER_LENGTHS: [f64; 9] = [60., 300., 900., 1800., 3600., 7200., 14400., 28800., 86400.];
 /// Choices of the number of samples combined into one stored value
 const STORAGE_DECIMATIONS: [u64; 4] = [1, 10, 100, 1000];
 /// Largest memory use (bytes) of the stored samples that can be chosen
+#[cfg(not(target_arch = "wasm32"))]
 const MAX_BUFFER_BYTES: f64 = 16e9;
+#[cfg(target_arch = "wasm32")]
+const MAX_BUFFER_BYTES: f64 = 1e9;
 /// Lowest current (µA) shown on a logarithmic axis
 const LOG_FLOOR_UA: f64 = 0.01;
 /// Selectable plot windows (s)
@@ -279,6 +289,7 @@ impl App {
         app
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn refresh_ports(&mut self) {
         use serialport::SerialPortType::UsbPort;
         let data_port = ppk2::try_find_ppk2_port().ok();
@@ -295,6 +306,13 @@ impl App {
                 Port { name: p.port_name, label }
             })
             .collect();
+    }
+
+    /// In the browser the user chooses the port in the browser's dialog, "Auto detect" uses one allowed before
+    #[cfg(target_arch = "wasm32")]
+    fn refresh_ports(&mut self) {
+        let name = crate::device::CHOOSE_PORT.to_string();
+        self.ports = vec![Port { name, label: "Choose a port…".into() }];
     }
 
     fn clear(&mut self) {
@@ -472,7 +490,9 @@ impl App {
                         ui.selectable_value(&mut self.port, Some(p.name.clone()), &p.label);
                     }
                 });
-                if ui.button("⟳").on_hover_text("Refresh the serial ports").clicked() {
+                if cfg!(not(target_arch = "wasm32"))
+                    && ui.button("⟳").on_hover_text("Refresh the serial ports").clicked()
+                {
                     self.refresh_ports();
                 }
                 ui.add_space(12.);

@@ -16,3 +16,5 @@ Cargo.lock
 
 # Editor stuff
 .vscode
+# trunk output (web build)
+/gui/dist

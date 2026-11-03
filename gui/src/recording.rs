@@ -1,7 +1,12 @@
 //! Storage of the measured samples: the stored samples (at full or reduced rate), min/max/average buckets for
 //! plotting, plus the statistics
 
-use std::{collections::VecDeque, mem::size_of, time::Instant};
+use std::{collections::VecDeque, mem::size_of};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
 
 use crate::stats::{Report, Stats};
 

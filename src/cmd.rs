@@ -70,7 +70,8 @@ impl Command {
         }
     }
 
-    pub(crate) fn response_complete(&self, response: &[u8]) -> bool {
+    /// Whether `response` is the complete response to this command.
+    pub fn response_complete(&self, response: &[u8]) -> bool {
         match self {
             Command::GetMetaData => response.ends_with(b"END\n"),
             _ => self.expected_response_len() >= response.len(),

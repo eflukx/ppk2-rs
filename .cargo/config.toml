@@ -1,0 +1,3 @@
+# WebSerial is an unstable API in web-sys
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]
