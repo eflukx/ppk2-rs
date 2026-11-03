@@ -2,10 +2,10 @@
 name = "ppk2"
 version = "0.2.0"
 edition = "2021"
-authors = ["Henk Oordt <hd@oordt.dev>"]
+authors = ["Henk Oordt <hd@oordt.dev>", "Rogier Lodewijks <rogier@lodewijks.org>"]
 description = "A driver for Nordic's Power Profiler Kit 2"
 readme = "README.md"
-repository = "https://github.com/hdoordt/ppk2-rs"
+repository = "https://github.com/eflukx/ppk2-rs"
 license = "MIT"
 keywords = ["PPK2", "Power", "Profiler", "Nordic", "Serial"]
 categories = ["embedded", "development-tools::profiling"]

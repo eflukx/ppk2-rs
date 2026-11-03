@@ -7,6 +7,8 @@ Rust library, CLI and desktop app for working with Nordic Semiconductor's Power 
 - [GUI](#gui): a lightweight native alternative to Nordic's Power Profiler, with a live readout, analog meter, plot and statistics. It also [runs in the browser](#web-version) (Chrome, Edge), over WebSerial
 - [Downloads](#downloads): prebuilt CLI and GUI for Windows, Linux and macOS
 
+A fork of [ppk2-rs](https://github.com/hdoordt/ppk2-rs) by Henk Oordt, who wrote the original library: many thanks! This fork adds the CLI statistics, the GUI and its web version, and keeps its own versions (from 0.2.0).
+
 Heavily based on [nrfconnect-ppk](https://github.com/NordicSemiconductor/pc-nrfconnect-ppk) and its derivate [ppk2-api-python](https://github.com/IRNAS/ppk2-api-python).
 
 ## Downloads
@@ -22,11 +24,11 @@ The macOS binaries are not signed: allow them with `xattr -d com.apple.quarantin
 
 ## Library
 
-Add the crate to your `Cargo.toml`:
+Add the crate to your `Cargo.toml`. This fork isn't on crates.io (`ppk2` there is the original, 0.1), so use it from git:
 
 ```toml
 [dependencies]
-ppk2 = "0.1"
+ppk2 = { git = "https://github.com/eflukx/ppk2-rs" }
 ```
 
 [`examples/cli.rs`](examples/cli.rs) shows how to connect to the PPK2, configure it and receive measurements.
