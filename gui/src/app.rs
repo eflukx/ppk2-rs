@@ -61,6 +61,8 @@ const Y_AXIS_WIDTH: f32 = 72.;
 const FOLLOW_LAG: f64 = 0.05;
 /// Height of the digital channels plot
 const DIGITAL_HEIGHT: f32 = 210.;
+/// Nordic's product page of the PPK2, linked from the name in the web version
+const PPK2_URL: &str = "https://www.nordicsemi.com/Products/Development-hardware/Power-Profiler-Kit-2";
 /// Storage key of the theme name
 const THEME_KEY: &str = "theme";
 /// Keyboard shortcuts and what they do, for the help window
@@ -470,7 +472,13 @@ impl App {
     fn top_bar(&mut self, ui: &mut egui::Ui, connected: bool, measuring: bool, error: Option<String>) {
         ui.horizontal_centered(|ui| {
             ui.spacing_mut().interact_size.y = 32.;
-            ui.label(theme::value("PPK2", 22.).color(theme::p().accent));
+            let name = theme::value("PPK2", 22.).color(theme::p().accent);
+            if cfg!(target_arch = "wasm32") {
+                ui.add(egui::Hyperlink::from_label_and_url(name, PPK2_URL).open_in_new_tab(true))
+                    .on_hover_text("The Power Profiler Kit II at Nordic Semiconductor");
+            } else {
+                ui.label(name);
+            }
             if !self.compact {
                 ui.label(theme::title("Power Profiler"));
             }
