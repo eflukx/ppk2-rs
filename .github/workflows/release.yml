@@ -1,0 +1,92 @@
+# Builds the CLI and the GUI for Windows, Linux and macOS. Pushing a version tag (e.g. v0.2.0) publishes them as a
+# GitHub release; running it by hand (Actions > Release > Run workflow) only builds, the archives are kept as
+# workflow artifacts.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
+          # The oldest available Ubuntu, so the binaries run on older glibc versions too
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-22.04 }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04-arm }
+          - { target: aarch64-apple-darwin, os: macos-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # libudev for the serial ports, the rest for the GUI (winit/egui)
+          sudo apt-get install -y pkg-config libudev-dev libxkbcommon-dev \
+            libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }} --workspace --bins --example cli
+
+      - name: Package
+        shell: bash
+        run: |
+          name="ppk2-${GITHUB_REF_NAME//\//-}-${{ matrix.target }}"
+          release="target/${{ matrix.target }}/release"
+          ext=""
+          if [ "$RUNNER_OS" = "Windows" ]; then ext=".exe"; fi
+          mkdir "$name"
+          cp "$release/ppk2-gui$ext" "$name/"
+          cp "$release/examples/cli$ext" "$name/ppk2-cli$ext"
+          cp README.md LICENSE "$name/"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "$name.zip" "$name" > /dev/null
+            echo "ARCHIVE=$name.zip" >> "$GITHUB_ENV"
+          else
+            tar czf "$name.tar.gz" "$name"
+            echo "ARCHIVE=$name.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
+
+  release:
+    name: Publish the release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

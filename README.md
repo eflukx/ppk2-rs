@@ -5,8 +5,20 @@ Rust library, CLI and desktop app for working with Nordic Semiconductor's Power 
 - [Library](#library): connect to the PPK2, configure it and receive measurements
 - [CLI](#cli): averaged readings, or statistics of every sample per interval (optionally as JSON)
 - [GUI](#gui): a lightweight native alternative to Nordic's Power Profiler, with a live readout, analog meter, plot and statistics
+- [Downloads](#downloads): prebuilt CLI and GUI for Windows, Linux and macOS
 
 Heavily based on [nrfconnect-ppk](https://github.com/NordicSemiconductor/pc-nrfconnect-ppk) and its derivate [ppk2-api-python](https://github.com/IRNAS/ppk2-api-python).
+
+## Downloads
+
+[Releases](https://github.com/eflukx/ppk2-rs/releases) have the GUI (`ppk2-gui`) and the CLI (`ppk2-cli`) prebuilt for Windows (x86_64), Linux (x86_64, aarch64) and macOS (Apple silicon, Intel). They are built by the [release workflow](.github/workflows/release.yml) when a version tag is pushed:
+
+```sh
+git tag v0.2.0
+git push fork v0.2.0
+```
+
+The macOS binaries are not signed: allow them with `xattr -d com.apple.quarantine ppk2-gui ppk2-cli`. On Linux, see [USB permissions](#usb-permissions-linux).
 
 ## Library
 

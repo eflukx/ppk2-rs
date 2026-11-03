@@ -1,5 +1,8 @@
 //! Native GUI for Nordic's Power Profiler Kit 2
 
+// No console window on Windows for release builds
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod device;
 mod meter;
