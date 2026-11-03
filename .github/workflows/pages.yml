@@ -30,8 +30,7 @@ jobs:
         run: cargo binstall -y trunk
       - name: Build
         working-directory: gui
-        # Relative URLs, as Pages serves the app from /<repository>/
-        run: trunk build --release --public-url ./
+        run: trunk build --release
       - uses: actions/upload-pages-artifact@v3
         with:
           path: gui/dist

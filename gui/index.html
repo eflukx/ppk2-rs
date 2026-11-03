@@ -4,6 +4,11 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PPK2 Power Profiler</title>
+    <script>
+        // The files are referenced relative to the page: served as /ppk2, they would be looked up in / instead of /ppk2/
+        const path = location.pathname;
+        if (!path.endsWith("/") && !path.split("/").pop().includes(".")) location.replace(path + "/" + location.search + location.hash);
+    </script>
     <link data-trunk rel="rust" data-bin="ppk2-gui" data-wasm-opt="2">
     <style>
         html, body { margin: 0; height: 100%; overflow: hidden; background: #16181c; color: #ccc; font-family: sans-serif; }

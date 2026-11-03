@@ -265,6 +265,8 @@ trunk serve --release    # http://localhost:8080
 trunk build --release    # static files in gui/dist, to host anywhere
 ```
 
+The build uses relative paths ([`gui/Trunk.toml`](gui/Trunk.toml)), so the files in `gui/dist` work from any path on a web server, e.g. `https://example.com/ppk2/`. Upload the files from `trunk build`, not from `trunk serve`, which adds a live-reload script. Opening `index.html` from disk (`file://`) doesn't work: browsers don't load modules and wasm from there.
+
 WebSerial is an unstable API in `web-sys`, [`.cargo/config.toml`](.cargo/config.toml) sets the `--cfg=web_sys_unstable_apis` it needs.
 
 Differences with the native app:
