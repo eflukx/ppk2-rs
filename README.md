@@ -163,6 +163,12 @@ Run it as a release build, so it keeps up with every sample:
 cargo run --release -p ppk2-gui
 ```
 
+For a binary to keep or hand out, the `release-lto` profile is smaller and slightly faster (link-time optimization, one codegen unit, stripped), but takes longer to build. The binary ends up in `target/release-lto`:
+
+```sh
+cargo build --profile release-lto -p ppk2-gui
+```
+
 The screenshots show simulated data: a device sleeping at about 4 µA, waking up once per second for a 3 ms burst of 6 mA followed by 42 ms at 650 µA, with D0 high during the wake-up.
 
 ### Connecting and supply

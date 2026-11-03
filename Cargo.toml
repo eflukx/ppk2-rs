@@ -38,3 +38,12 @@ maintenance = { status = "passively-maintained" }
 
 [workspace]
 members = ["gui"]
+
+# Optimized release build: `cargo build --profile release-lto -p ppk2-gui`, into target/release-lto.
+# Smaller and slightly faster than `release`, but slower to build.
+[profile.release-lto]
+inherits = "release"
+lto = true
+codegen-units = 1
+# Debug symbols out of the binary on Linux and macOS (on Windows they're in a separate .pdb anyway)
+strip = true
